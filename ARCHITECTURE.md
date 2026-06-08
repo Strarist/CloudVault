@@ -67,6 +67,60 @@ CloudVault/
   - *Testable*: Unit tests with Jest, integration tests with Supertest.
 - **Deployment Targets**: Backend on Render/Railway, Frontend on Vercel, DB on MongoDB Atlas, Storage on Supabase.
 
+### Workspace Ownership Rules
+- A workspace owner **cannot** leave the workspace.
+- A workspace owner **cannot** delete their account.
+- **Ownership Transfer Flow**:
+  1. Owner requests ownership transfer to another member.
+  2. New owner is assigned the `OWNER` role.
+  3. Old owner is demoted to a regular role (e.g., `ADMIN` or `EDITOR`).
+  4. Only after this transfer is complete can the old owner leave the workspace or delete their account.
+
+### Soft Delete Policy
+- Soft delete applies to **Workspace**, **Folder**, and **File** models.
+- These models include a `deletedAt` field (Date type).
+- When a resource is deleted, `deletedAt` is set to the current timestamp.
+- For the MVP, all queries for active resources must exclude records where `deletedAt` is present (i.e. `deletedAt: null` or `{ $exists: false }`).
+- This facilitates future recovery/restoration features.
+
+### Notification Types
+The application supports the following notification types:
+- `COMMENT`: Triggered when a comment is added to a file.
+- `MENTION`: Triggered when a user is @mentioned in a comment.
+- `INVITATION`: Triggered when a user is invited to a workspace.
+- `ROLE_CHANGED`: Triggered when a user's role in a workspace is changed.
+- `FILE_SHARED`: Triggered when a file is explicitly shared or access is updated.
+
+### Upload Failure Recovery Architecture
+- **Upload Flow**:
+  1. Create database `File` record with `status = "PENDING_UPLOAD"`.
+  2. Upload the physical file to Supabase Storage.
+  3. Create database `FileVersion` record referencing the file metadata.
+  4. Update database `File` record setting `status = "ACTIVE"` and linking `currentVersionId`.
+- **Failure Handling**:
+  - *Storage Failure*: If upload to Supabase fails, update the database `File` record `status = "UPLOAD_FAILED"`. Do not create a `FileVersion` record.
+  - *Database Failure after Upload*: If updating `FileVersion` or `File` fails after a successful upload to Supabase, delete the uploaded object from Supabase Storage to avoid orphaned files in cloud storage.
+
+### Security Rules
+- **Storage Security**:
+  - All Supabase storage buckets must be configured as **Private**.
+  - Public file URLs are **never** permitted.
+- **Download Flow**:
+  1. User requests file download.
+  2. Perform authentication and workspace permission checks.
+  3. Generate a signed Supabase URL with a short expiry (recommended: **60 seconds**).
+  4. Return the signed URL to the user.
+
+### Workspace Isolation Rule
+- Every protected API and resource query must validate that the user has permission for that specific workspace.
+- **Invalid Pattern**: `File.findById(fileId)` (this allows ID enumeration across workspaces).
+- **Correct Pattern**: `File.findOne({ _id: fileId, workspaceId: workspaceId })`
+
+### AI Architecture (Future Phase 8+)
+- Supported fields in File schema: `summary` (string), `tags` (array of strings), `aiStatus` (enum: `NOT_STARTED`, `PROCESSING`, `READY`, `FAILED`).
+- **Processing Pipeline**:
+  `Upload` -> `Queue Job` -> `Extract Text` -> `Generate Summary` -> `Generate Tags` -> `Store Metadata`
+
 ---
 
 > **Note**: All architectural decisions must be approved before any code is written.

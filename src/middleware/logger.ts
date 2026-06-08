@@ -1,0 +1,40 @@
+import { Request, Response, NextFunction } from 'express';
+import pino from 'pino';
+
+const logger = pino({
+  level: process.env.LOG_LEVEL || 'info',
+  transport: {
+    target: 'pino-pretty',
+    options: {
+      colorize: true,
+      translateTime: 'SYS:standard',
+      ignore: 'pid,hostname',
+    },
+  },
+});
+
+export function loggerMiddleware(req: Request, res: Response, next: NextFunction): void {
+  const startTime = Date.now();
+
+  // Log request start
+  logger.info(`[${req.id}] ${req.method} ${req.url} - Started`);
+
+  // Log request end
+  res.on('finish', () => {
+    const duration = Date.now() - startTime;
+    const statusCode = res.statusCode;
+
+    if (statusCode >= 500) {
+      logger.error(`[${req.id}] ${req.method} ${req.url} - ${statusCode} - ${duration}ms`);
+    } else if (statusCode >= 400) {
+      logger.warn(`[${req.id}] ${req.method} ${req.url} - ${statusCode} - ${duration}ms`);
+    } else {
+      logger.info(`[${req.id}] ${req.method} ${req.url} - ${statusCode} - ${duration}ms`);
+    }
+  });
+
+  next();
+}
+
+export { logger };
+export default logger;
