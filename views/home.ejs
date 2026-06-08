@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://cdn.jsdelivr.net/npm/flowbite@4.0.1/dist/flowbite.min.css" rel="stylesheet" />
+    <link
+  href="https://cdn.jsdelivr.net/npm/remixicon@4.9.0/fonts/remixicon.css"
+  rel="stylesheet"
+/>
+
+  </head>
+  <body>
+    <main class = "p-4 bg-gray-100 dark: bg-gray-800 h-screen w-screen" >
+    <button  onclick="showPopUp()"
+    class = "bg-blue-500 hover: bg-blue-700 text-white font-bold py-2 px-4 rounded">
+    upload file
+    </button>
+
+    <div class="pop hidden backdrop-blur-md fixed top-0 left-0 h-screen w-screen flex item-center justify-center">
+
+     
+    <form action="/upload-file" method="post" enctype="multipart/form-data">
+
+<div class="flex items-center justify-center w-90">
+  <div class="flex flex-col items-center justify-center w-full h-64 bg-neutral-secondary-medium border border-dashed border-default-strong rounded-base">
+    <div class="flex flex-col items-center justify-center text-body pt-5 pb-6">
+      <svg class="w-8 h-8 mb-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v9m-5 0H5a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1h-2M8 9l4-5 4 5m1 8h.01"/></svg>
+      <p class="mb-2 text-sm">Click the button below to upload</p>
+      <p class="text-xs mb-4">Max. File Size: <span class="font-semibold">30MB</span></p>
+      <!-- Upload Button -->
+      <button type="button" onclick="document.getElementById('dropzone-file-2').click()" class="inline-flex items-center text-white bg-brand hover:bg-brand-strong box-border border border-transparent focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-base text-sm px-3 py-2 focus:outline-none">
+        <svg class="w-4 h-4 me-1.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-width="2" d="m21 21-3.5-3.5M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"/></svg>
+        Browse file
+      </button>
+    </div>
+  </div>
+  <!-- Hidden File Input (Outside Label) -->
+  <input id="dropzone-file-2" type="file" class="hidden" name="file" />
+</div>
+
+
+<button
+ class="bg-blue-500 hover: bg-blue-700 text-white font-semibold rounded">
+    Upload File
+    </button>
+</form>
+
+<button class="absolute top-4 right-4 text-gray-800 dark:text-gray-500  text-xl"
+ onclick="hidePopUp()">
+    <i class="ri-close-large-line"></i>
+</button>
+
+    </div>
+    </main>
+<script src="https://cdn.jsdelivr.net/npm/flowbite@4.0.1/dist/flowbite.min.js"></script>
+<script>
+    function showPopUp(){
+        document.querySelector('.pop').style.display='flex'
+    }
+    function hidePopUp(){
+        document.querySelector('.pop').style.display='none'
+    }
+</script>
+
+  </body>
+</html>
