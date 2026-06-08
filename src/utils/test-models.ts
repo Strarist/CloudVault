@@ -29,6 +29,15 @@ async function runTests() {
   await mongoose.connect(MONGO_URI);
   console.log('Connected.');
 
+  console.log('Ensuring all model indexes are built and cleaning old ones...');
+  await (User as any).cleanIndexes();
+  await User.ensureIndexes();
+  await (WorkspaceMember as any).cleanIndexes();
+  await WorkspaceMember.ensureIndexes();
+  await (FileVersion as any).cleanIndexes();
+  await FileVersion.ensureIndexes();
+  console.log('Indexes built.');
+
   const cleanupIds: { [key: string]: mongoose.Types.ObjectId[] } = {
     users: [],
     workspaces: [],
@@ -175,6 +184,63 @@ async function runTests() {
         throw err;
       }
       console.log('Enum check validation successfully caught invalid status:', err.message);
+    }
+
+    // 11. Test unique constraint on User email
+    console.log('Testing User email uniqueness constraint...');
+    try {
+      await User.create({
+        email: testUser.email,
+        passwordHash: 'anotherhash',
+        name: 'Another User',
+      });
+      throw new Error('Should have failed email uniqueness check!');
+    } catch (err: any) {
+      if (err.message === 'Should have failed email uniqueness check!') {
+        throw err;
+      }
+      console.log('Email uniqueness validation successfully caught duplicate key:', err.message);
+    }
+
+    // 12. Test unique compound constraint on WorkspaceMember (workspaceId + userId)
+    console.log('Testing WorkspaceMember uniqueness constraint...');
+    try {
+      await WorkspaceMember.create({
+        workspaceId: testWorkspace._id,
+        userId: testUser._id,
+        role: WorkspaceRole.VIEWER,
+      });
+      throw new Error('Should have failed workspace member uniqueness check!');
+    } catch (err: any) {
+      if (err.message === 'Should have failed workspace member uniqueness check!') {
+        throw err;
+      }
+      console.log(
+        'WorkspaceMember uniqueness validation successfully caught duplicate key:',
+        err.message,
+      );
+    }
+
+    // 13. Test unique compound constraint on FileVersion (fileId + versionNumber)
+    console.log('Testing FileVersion uniqueness constraint...');
+    try {
+      await FileVersion.create({
+        fileId: testFile._id,
+        versionNumber: 1,
+        storageKey: 'another-key',
+        mimeType: 'text/plain',
+        fileSize: 100,
+        uploadedBy: testUser._id,
+      });
+      throw new Error('Should have failed file version uniqueness check!');
+    } catch (err: any) {
+      if (err.message === 'Should have failed file version uniqueness check!') {
+        throw err;
+      }
+      console.log(
+        'FileVersion uniqueness validation successfully caught duplicate key:',
+        err.message,
+      );
     }
 
     console.log('\nAll model validations completed successfully.');

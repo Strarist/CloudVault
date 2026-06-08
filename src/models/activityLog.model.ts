@@ -48,7 +48,7 @@ const activityLogSchema = new Schema<IActivityLog>(
     },
   },
   {
-    timestamps: false,
+    timestamps: true,
   },
 );
 

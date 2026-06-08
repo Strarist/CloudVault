@@ -32,7 +32,7 @@ const workspaceMemberSchema = new Schema<IWorkspaceMember>(
     },
   },
   {
-    timestamps: false,
+    timestamps: true,
   },
 );
 

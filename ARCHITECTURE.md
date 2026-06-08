@@ -121,6 +121,21 @@ The application supports the following notification types:
 - **Processing Pipeline**:
   `Upload` -> `Queue Job` -> `Extract Text` -> `Generate Summary` -> `Generate Tags` -> `Store Metadata`
 
+### Service Layer Validation & Design Invariants
+- **Workspace Owner Invariant**: Every workspace must always contain **exactly one** member with the role `OWNER`. This rule is enforced in the Application Service Layer, not at the database level.
+- **Folder Naming Rules**: Folder names must be unique within the same parent folder (and same workspace) to prevent user confusion. This uniqueness is validated in the Folder Service.
+- **File Naming Rules**: CloudVault allows duplicate file names within the same folder (similar to Google Drive). Files are uniquely identified by their database `_id` and storage keys, permitting multiple separate files named `Resume.pdf` to coexist.
+
+### Schema Structure & Metadata Specifications
+- **ActivityLog metadata field expected structures**:
+  - *Role Change*: `{ "oldRole": "EDITOR", "newRole": "ADMIN" }`
+  - *File Upload*: `{ "fileName": "resume.pdf", "fileSize": 51200 }`
+  - *Member Invite*: `{ "inviteeEmail": "user@domain.com", "role": "EDITOR" }`
+- **Notification payload field expected structures**:
+  - *Comment Notification*: `{ "fileId": "ObjectIdString", "commentId": "ObjectIdString", "actorId": "ObjectIdString" }`
+  - *Workspace Invitation*: `{ "workspaceId": "ObjectIdString", "inviterId": "ObjectIdString" }`
+  - *Role Change*: `{ "workspaceId": "ObjectIdString", "oldRole": "EDITOR", "newRole": "ADMIN" }`
+
 ---
 
 > **Note**: All architectural decisions must be approved before any code is written.

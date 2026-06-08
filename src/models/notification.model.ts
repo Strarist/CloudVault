@@ -38,7 +38,7 @@ const notificationSchema = new Schema<INotification>(
     },
   },
   {
-    timestamps: false,
+    timestamps: true,
   },
 );
 

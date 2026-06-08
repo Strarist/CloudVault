@@ -49,7 +49,7 @@ const fileVersionSchema = new Schema<IFileVersion>(
     },
   },
   {
-    timestamps: false,
+    timestamps: true,
   },
 );
 
