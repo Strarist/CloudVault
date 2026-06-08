@@ -24,15 +24,23 @@ CloudVault/
 ```
 
 ### Database Design (MongoDB)
-- **User**: { email, passwordHash, name, role, createdAt, updatedAt }
-- **Workspace**: { name, ownerId, members[], createdAt }
-- **WorkspaceMember**: { workspaceId, userId, role }
-- **Folder**: { name, workspaceId, parentFolderId, createdAt }
-- **File**: { name, folderId, workspaceId, mimeType, size, storageKey, createdBy, createdAt }
-- **FileVersion**: { fileId, versionNumber, storageKey, createdAt }
-- **Comment**: { fileId, authorId, content, createdAt, mentions[] }
-- **Notification**: { userId, type, payload, read: false, createdAt }
-- **ActivityLog**: { actorId, action, targetId, targetType, metadata, timestamp }
+### Database Design (MongoDB)
+- **User**: { _id, email, passwordHash, name, avatar, createdAt, updatedAt }
+- **Workspace**: { _id, name, description, ownerId, type, aiEnabled, createdAt, updatedAt, deletedAt }
+- **WorkspaceMember**: { _id, workspaceId, userId, role, joinedAt }
+- **Folder**: { _id, name, workspaceId, parentFolderId, createdBy, createdAt, updatedAt, deletedAt }
+- **File**: { _id, name, workspaceId, folderId, currentVersionId, createdBy, status, summary, tags, aiStatus, createdAt, updatedAt, deletedAt }
+- **FileVersion**: { _id, fileId, versionNumber, storageKey, mimeType, fileSize, uploadedBy, createdAt }
+- **Comment**: { _id, fileId, authorId, content, createdAt, mentions[] }
+- **Notification**: { _id, userId, type, payload, isRead, createdAt }
+- **ActivityLog**: { _id, actorId, action, targetId, targetType, metadata, timestamp }
+- **Indexes**:
+  - User: unique email
+  - WorkspaceMember: compound unique (workspaceId, userId)
+  - Folder: workspaceId
+  - File: workspaceId, folderId, createdBy
+  - Notification: userId, isRead
+  - ActivityLog: workspaceId, timestamp
 
 ### RBAC Matrix (Roles & Permissions)
 | Role            | Permissions                                                                 |
