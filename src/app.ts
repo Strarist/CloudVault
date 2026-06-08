@@ -13,7 +13,7 @@ import { errorHandler } from './middleware/errorHandler';
 
 import healthRouter from './routes/health';
 import indexRoutes from './routes/index.routes';
-import userRoutes from './routes/user.routes';
+import authRoutes from './routes/auth.routes';
 
 const app = express();
 
@@ -42,7 +42,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 // Routes
 app.use('/health', healthRouter);
 app.use('/', indexRoutes);
-app.use('/user', userRoutes);
+app.use('/auth', authRoutes);
 
 // Centralized error handler
 app.use(errorHandler);
