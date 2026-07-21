@@ -33,10 +33,13 @@ The following variables must be configured in the deployment environment:
 | `AI_PROVIDER` | AI backend (`mock` or `openrouter`) | No | `openrouter` |
 | `OPENROUTER_API_KEY` | OpenRouter API key (server only) | Yes if `AI_PROVIDER=openrouter` | *Paste key; never commit* |
 | `OPENROUTER_BASE_URL` | OpenRouter OpenAI-compatible base URL | No | `https://openrouter.ai/api/v1` |
-| `OPENROUTER_MODEL` | Chat/summary/tag model id | No | `openai/gpt-4o-mini` |
-| `OPENROUTER_EMBEDDING_MODEL` | Embedding model id | No | `openai/text-embedding-3-small` |
+| `OPENROUTER_MODEL` | Chat/summary/tag model id | No | `openrouter/free` (free) |
+| `OPENROUTER_EMBEDDING_MODEL` | Embedding model id, or `local` | No | `local` (no paid embeddings) |
 
 > Copy [`.env.example`](.env.example) to `.env`. If `AI_PROVIDER=openrouter` but `OPENROUTER_API_KEY` is empty, the worker falls back to **MockAIProvider** and logs a warning.
+>
+> Prefer free OpenRouter models (ids ending in `:free`, or `openrouter/free`). Do **not** set `openai/gpt-4o-mini` / paid embedding models unless you intend to spend credits.
+> `OPENROUTER_EMBEDDING_MODEL=local` uses a deterministic local vector so semantic search works without a paid embedding API.
 
 ### Enable OpenRouter (after you generate a key)
 

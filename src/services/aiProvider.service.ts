@@ -244,6 +244,12 @@ export class OpenRouterAIProvider implements IAIProvider {
   async generateEmbedding(
     text: string,
   ): Promise<{ embedding: number[]; model: string; dimensions: number }> {
+    // Free-tier path: OpenRouter has no reliable free embedding models.
+    // `local` keeps semantic search working without paid OpenAI embedding calls.
+    if (!this.embeddingModel || this.embeddingModel.toLowerCase() === 'local') {
+      return this.localEmbedding(text);
+    }
+
     const input = text.length > 20_000 ? text.slice(0, 20_000) : text;
     const data = await this.request<{
       data?: Array<{ embedding?: number[] }>;
@@ -261,6 +267,24 @@ export class OpenRouterAIProvider implements IAIProvider {
       embedding,
       model: this.embeddingModel,
       dimensions: embedding.length,
+    };
+  }
+
+  private localEmbedding(text: string): {
+    embedding: number[];
+    model: string;
+    dimensions: number;
+  } {
+    const input = text.trim() || ' ';
+    const textLen = input.length;
+    const embedding = new Array(1536).fill(0).map((_, i) => {
+      const charCode = input.charCodeAt(i % textLen) || 0;
+      return Math.sin(i + charCode) * 0.1;
+    });
+    return {
+      embedding,
+      model: 'local-deterministic-embedding',
+      dimensions: 1536,
     };
   }
 }

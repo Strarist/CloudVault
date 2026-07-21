@@ -41,9 +41,8 @@ export const config: Config = {
   AI_PROVIDER: (process.env.AI_PROVIDER || 'mock').toLowerCase(),
   OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || '',
   OPENROUTER_BASE_URL: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
-  OPENROUTER_MODEL: process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini',
-  OPENROUTER_EMBEDDING_MODEL:
-    process.env.OPENROUTER_EMBEDDING_MODEL || 'openai/text-embedding-3-small',
+  OPENROUTER_MODEL: process.env.OPENROUTER_MODEL || 'openrouter/free',
+  OPENROUTER_EMBEDDING_MODEL: process.env.OPENROUTER_EMBEDDING_MODEL || 'local',
 };
 
 // Fail fast in production if Supabase keys are missing
