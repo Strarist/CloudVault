@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
+import { AIStatus } from './types';
 
 export interface IFileVersion extends Document {
   fileId: mongoose.Types.ObjectId;
@@ -7,6 +8,7 @@ export interface IFileVersion extends Document {
   mimeType: string;
   fileSize: number;
   uploadedBy: mongoose.Types.ObjectId;
+  aiStatus: AIStatus;
   createdAt: Date;
 }
 
@@ -41,6 +43,12 @@ const fileVersionSchema = new Schema<IFileVersion>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+    },
+    aiStatus: {
+      type: String,
+      enum: Object.values(AIStatus),
+      required: true,
+      default: AIStatus.NOT_STARTED,
     },
     createdAt: {
       type: Date,

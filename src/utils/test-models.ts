@@ -158,7 +158,7 @@ async function runTests() {
     const testLog = await ActivityLog.create({
       workspaceId: testWorkspace._id,
       actorId: testUser._id,
-      action: ActivityAction.FILE_UPLOAD,
+      action: ActivityAction.FILE_UPLOADED,
       targetId: testFile._id,
       targetType: 'File',
       metadata: {

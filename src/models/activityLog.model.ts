@@ -56,6 +56,7 @@ const activityLogSchema = new Schema<IActivityLog>(
 activityLogSchema.index({ workspaceId: 1 });
 activityLogSchema.index({ actorId: 1 });
 activityLogSchema.index({ timestamp: 1 });
+activityLogSchema.index({ workspaceId: 1, timestamp: -1 }); // Compound index optimized for workspace activity feeds
 
 export const ActivityLog = mongoose.model<IActivityLog>('ActivityLog', activityLogSchema);
 export default ActivityLog;

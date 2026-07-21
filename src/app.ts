@@ -14,6 +14,15 @@ import { errorHandler } from './middleware/errorHandler';
 import healthRouter from './routes/health';
 import indexRoutes from './routes/index.routes';
 import authRoutes from './routes/auth.routes';
+import workspaceRoutes from './routes/workspace.routes';
+import fileRoutes from './routes/file.routes';
+import aiRoutes from './routes/ai.routes';
+import activityRoutes from './routes/activity.routes';
+import commentRoutes from './routes/comment.routes';
+import notificationRoutes from './routes/notification.routes';
+import systemRoutes from './routes/system.routes';
+import searchRoutes from './routes/search.routes';
+import intelligenceRoutes from './routes/intelligence.routes';
 
 const app = express();
 
@@ -31,7 +40,12 @@ app.use(
     contentSecurityPolicy: false, // Turn off CSP for dev with CDN scripts in views
   }),
 );
-app.use(cors());
+app.use(
+  cors({
+    origin: 'http://localhost:3001',
+    credentials: true,
+  }),
+);
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -43,13 +57,22 @@ app.use(express.static(path.join(__dirname, '../public')));
 app.use('/health', healthRouter);
 app.use('/', indexRoutes);
 app.use('/auth', authRoutes);
+app.use('/workspaces', workspaceRoutes);
+app.use('/workspaces', fileRoutes);
+app.use('/workspaces', aiRoutes);
+app.use('/workspaces', commentRoutes);
+app.use('/workspaces', activityRoutes);
+app.use('/workspaces', searchRoutes);
+app.use('/workspaces', intelligenceRoutes);
+app.use('/notifications', notificationRoutes);
+app.use('/system', systemRoutes);
 
 // Centralized error handler
 app.use(errorHandler);
 
 let server: Server;
 
-async function startServer() {
+export async function startServer() {
   // 1. Connect to Database
   await connectToDB();
 
@@ -96,9 +119,11 @@ async function gracefulShutdown(signal: string) {
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
-startServer().catch((err) => {
-  logger.error(err as Error, 'Unhandled error during startup:');
-  process.exit(1);
-});
+if (require.main === module) {
+  startServer().catch((err) => {
+    logger.error(err as Error, 'Unhandled error during startup:');
+    process.exit(1);
+  });
+}
 
 export default app;

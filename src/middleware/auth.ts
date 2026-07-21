@@ -39,6 +39,11 @@ export async function authenticateJWT(
     const user = await User.findById(decoded.userId);
 
     if (!user) {
+      res.clearCookie('token', {
+        httpOnly: true,
+        secure: config.NODE_ENV === 'production',
+        sameSite: 'lax',
+      });
       res.status(401).json({ error: 'Authentication failed. User not found.' });
       return;
     }
@@ -46,6 +51,11 @@ export async function authenticateJWT(
     req.user = user;
     next();
   } catch {
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: config.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
     res.status(401).json({ error: 'Invalid or expired authentication token.' });
   }
 }

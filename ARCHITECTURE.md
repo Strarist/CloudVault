@@ -101,6 +101,13 @@ The application supports the following notification types:
   - *Storage Failure*: If upload to Supabase fails, update the database `File` record `status = "UPLOAD_FAILED"`. Do not create a `FileVersion` record.
   - *Database Failure after Upload*: If updating `FileVersion` or `File` fails after a successful upload to Supabase, delete the uploaded object from Supabase Storage to avoid orphaned files in cloud storage.
 
+### Storage Key Strategy
+- **Format**: `workspaceId/fileId/vVersionNumber/originalFileName`
+- **Example**:
+  - `workspace_123/file_456/v1/resume.pdf`
+  - `workspace_123/file_456/v2/resume.pdf`
+- **Rationale**: Structuring storage keys with slashes organizes the objects into virtual folders in the Supabase Storage bucket, simplifying manual audits and ensuring predictable migration paths.
+
 ### Security Rules
 - **Storage Security**:
   - All Supabase storage buckets must be configured as **Private**.

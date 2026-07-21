@@ -1,3 +1,7 @@
 .env
 node_modules
 dist/
+scratch/
+test-output.log
+frontend/.next/
+*.log
