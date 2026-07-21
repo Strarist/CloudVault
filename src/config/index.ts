@@ -45,7 +45,7 @@ export const config: Config = {
   OPENROUTER_EMBEDDING_MODEL: process.env.OPENROUTER_EMBEDDING_MODEL || 'local',
 };
 
-// Fail fast in production if Supabase keys are missing
+// Fail fast in production if Supabase keys / weak JWT secret
 if (config.NODE_ENV === 'production') {
   if (!config.SUPABASE_URL) {
     console.error('[ERROR] Missing required environment variable in production: SUPABASE_URL');
@@ -54,6 +54,19 @@ if (config.NODE_ENV === 'production') {
   if (!config.SUPABASE_SERVICE_ROLE_KEY) {
     console.error(
       '[ERROR] Missing required environment variable in production: SUPABASE_SERVICE_ROLE_KEY',
+    );
+    process.exit(1);
+  }
+  const weakSecrets = new Set([
+    'change-me-to-a-long-random-string',
+    'secret',
+    'jwt_secret',
+    'password',
+    'changeme',
+  ]);
+  if (config.JWT_SECRET.length < 32 || weakSecrets.has(config.JWT_SECRET.toLowerCase())) {
+    console.error(
+      '[ERROR] JWT_SECRET in production must be a strong random value (at least 32 characters).',
     );
     process.exit(1);
   }

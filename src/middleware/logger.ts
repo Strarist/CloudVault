@@ -15,9 +15,11 @@ const logger = pino({
 
 export function loggerMiddleware(req: Request, res: Response, next: NextFunction): void {
   const startTime = Date.now();
+  // Avoid logging raw query strings that may contain tokens
+  const safeUrl = (req.originalUrl || req.url || '').split('?')[0];
 
   // Log request start
-  logger.info(`[${req.id}] ${req.method} ${req.url} - Started`);
+  logger.info(`[${req.id}] ${req.method} ${safeUrl} - Started`);
 
   // Log request end
   res.on('finish', () => {
@@ -25,11 +27,11 @@ export function loggerMiddleware(req: Request, res: Response, next: NextFunction
     const statusCode = res.statusCode;
 
     if (statusCode >= 500) {
-      logger.error(`[${req.id}] ${req.method} ${req.url} - ${statusCode} - ${duration}ms`);
+      logger.error(`[${req.id}] ${req.method} ${safeUrl} - ${statusCode} - ${duration}ms`);
     } else if (statusCode >= 400) {
-      logger.warn(`[${req.id}] ${req.method} ${req.url} - ${statusCode} - ${duration}ms`);
+      logger.warn(`[${req.id}] ${req.method} ${safeUrl} - ${statusCode} - ${duration}ms`);
     } else {
-      logger.info(`[${req.id}] ${req.method} ${req.url} - ${statusCode} - ${duration}ms`);
+      logger.info(`[${req.id}] ${req.method} ${safeUrl} - ${statusCode} - ${duration}ms`);
     }
   });
 

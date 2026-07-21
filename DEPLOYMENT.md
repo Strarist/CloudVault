@@ -107,10 +107,14 @@ The backend exposes the following endpoint to monitor service health and connect
 
 ## 4. Production Log Sanitization & Security
 
+See [SECURITY.md](SECURITY.md) for secret handling, `.gitignore` rules, and pre-push checks.
+
 To protect user privacy and secure credentials in production:
-1. **No Sensitive Leaks**: Ensure all loggers exclude request/response headers containing `Authorization`, `Cookie`, or `Set-Cookie`.
+1. **No Sensitive Leaks**: Ensure all loggers exclude request/response headers containing `Authorization`, `Cookie`, or `Set-Cookie`. Query strings are stripped from request path logs.
 2. **PII Masking**: Ensure passwords, credit cards, and JWT tokens are filtered and replaced with `[REDACTED]` in application logging middlewares.
 3. **Log Level**: Use `info` or `warn` level in production environments to minimize IO bottlenecks and limit debugging log output.
+4. **JWT**: Production refuses weak/placeholder `JWT_SECRET` values (min 32 chars).
+5. **Cookies**: Auth cookie is `httpOnly` + `sameSite=lax`; `secure` is enabled when `NODE_ENV=production`.
 
 ---
 
