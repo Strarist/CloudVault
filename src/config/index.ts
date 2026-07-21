@@ -12,6 +12,11 @@ interface Config {
   SUPABASE_SERVICE_ROLE_KEY: string;
   SUPABASE_BUCKET: string;
   STORAGE_USE_MOCK: boolean;
+  AI_PROVIDER: string;
+  OPENROUTER_API_KEY: string;
+  OPENROUTER_BASE_URL: string;
+  OPENROUTER_MODEL: string;
+  OPENROUTER_EMBEDDING_MODEL: string;
 }
 
 const getEnvOrThrow = (key: string): string => {
@@ -33,6 +38,12 @@ export const config: Config = {
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   SUPABASE_BUCKET: process.env.SUPABASE_BUCKET || 'cloudvault-files',
   STORAGE_USE_MOCK: process.env.STORAGE_USE_MOCK === 'true',
+  AI_PROVIDER: (process.env.AI_PROVIDER || 'mock').toLowerCase(),
+  OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || '',
+  OPENROUTER_BASE_URL: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
+  OPENROUTER_MODEL: process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini',
+  OPENROUTER_EMBEDDING_MODEL:
+    process.env.OPENROUTER_EMBEDDING_MODEL || 'openai/text-embedding-3-small',
 };
 
 // Fail fast in production if Supabase keys are missing

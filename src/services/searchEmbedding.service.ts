@@ -1,12 +1,12 @@
-import { MockAIProvider, IAIProvider } from './aiProvider.service';
+import { createAIProvider, IAIProvider } from './aiProvider.service';
 
 export class SearchEmbeddingService {
   private aiProvider: IAIProvider;
   private cache: Map<string, number[]>;
 
   constructor(aiProvider?: IAIProvider) {
-    // Default to MockAIProvider, allowing dependency injection for testing
-    this.aiProvider = aiProvider || new MockAIProvider();
+    // Default to env-selected provider; allow DI for tests
+    this.aiProvider = aiProvider || createAIProvider();
     this.cache = new Map<string, number[]>();
   }
 

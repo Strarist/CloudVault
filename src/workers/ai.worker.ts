@@ -9,9 +9,14 @@ import { File } from '../models/file.model';
 import { FileVersion } from '../models/fileVersion.model';
 import { Workspace } from '../models/workspace.model';
 import { AIStatus, ActivityAction, WorkspaceRole, NotificationType } from '../models/types';
-import { MockAIProvider } from '../services/aiProvider.service';
+import { createAIProvider, isMockAIProvider } from '../services/aiProvider.service';
 import { ActivityService } from '../services/activity.service';
 import { withTimeout } from '../services/aiTimeout.service';
+import {
+  buildMockExtractedText,
+  extractTextFromFileVersion,
+  TextExtractError,
+} from '../services/textExtract.service';
 import { WorkspaceMember } from '../models/workspaceMember.model';
 import { Notification } from '../models/notification.model';
 
@@ -28,7 +33,7 @@ if (fs.existsSync(envPath)) {
 const workerId = `worker-${os.hostname()}-${process.pid}-${Math.random().toString(36).substring(2, 7)}`;
 let pollingEnabled = true;
 let activeJobPromise: Promise<void> | null = null;
-const aiProvider = new MockAIProvider();
+const aiProvider = createAIProvider();
 const SYSTEM_ACTOR_ID = new mongoose.Types.ObjectId('000000000000000000000000');
 
 // Inline heartbeat schema
@@ -68,7 +73,11 @@ function classifyError(err: any): 'TRANSIENT' | 'PERMANENT' {
     msg.includes('auth') ||
     msg.includes('key') ||
     msg.includes('unauthorized') ||
-    msg.includes('not found')
+    msg.includes('not found') ||
+    msg.includes('unsupported mime') ||
+    msg.includes('no extractable text') ||
+    msg.includes('text extraction failed') ||
+    msg.includes('empty')
   ) {
     return 'PERMANENT';
   }
@@ -169,16 +178,33 @@ async function processJob(job: any): Promise<void> {
       throw new Error('Target FileVersion was deleted before processing could begin.');
     }
 
-    // 3. Mock file download & text extraction (representing Phase 8 workflow)
-    const mockExtractedText = `This is a mock extracted text from the file version ${fileVersionId}. It contains test dummy strings for verification.`;
+    // 3. Extract text (real download when live provider; mock text when mock provider)
+    let extractedText: string;
+    if (isMockAIProvider(aiProvider)) {
+      extractedText = buildMockExtractedText(String(fileVersionId));
+    } else {
+      try {
+        extractedText = await extractTextFromFileVersion(version);
+      } catch (extractErr: unknown) {
+        const message =
+          extractErr instanceof TextExtractError
+            ? extractErr.message
+            : extractErr instanceof Error
+              ? extractErr.message
+              : 'Text extraction failed';
+        const permanent = new Error(message) as Error & { status?: number };
+        permanent.status = 400;
+        throw permanent;
+      }
+    }
 
     // 4. Generate AI summaries, tags, embeddings from provider (IAIProvider) with timeout protection
-    const summaryRes = await withTimeout(aiProvider.generateSummary(mockExtractedText), 60000);
-    const tagsRes = await withTimeout(aiProvider.generateTags(mockExtractedText), 30000);
-    const embeddingRes = await withTimeout(aiProvider.generateEmbedding(mockExtractedText), 60000);
+    const summaryRes = await withTimeout(aiProvider.generateSummary(extractedText), 60000);
+    const tagsRes = await withTimeout(aiProvider.generateTags(extractedText), 30000);
+    const embeddingRes = await withTimeout(aiProvider.generateEmbedding(extractedText), 60000);
 
     // 5. Build inline cache with UTF-8 byte-safety
-    const truncatedCache = truncateTextCache(mockExtractedText);
+    const truncatedCache = truncateTextCache(extractedText);
 
     // 6. Write AIResult and File/Version statuses in a single atomic database operation block
     let transactionSuccessful = false;
@@ -204,8 +230,8 @@ async function processJob(job: any): Promise<void> {
                 embeddingDimensions: embeddingRes.dimensions,
                 embeddingVersion: 1,
                 modelProvider: aiProvider.providerName,
-                modelName: 'mock-summarizer',
-                modelVersion: '1.0.0',
+                modelName: aiProvider.summarizerModelName,
+                modelVersion: aiProvider.summarizerModelVersion,
               },
             },
             { upsert: true, session },
@@ -258,8 +284,8 @@ async function processJob(job: any): Promise<void> {
             embeddingDimensions: embeddingRes.dimensions,
             embeddingVersion: 1,
             modelProvider: aiProvider.providerName,
-            modelName: 'mock-summarizer',
-            modelVersion: '1.0.0',
+            modelName: aiProvider.summarizerModelName,
+            modelVersion: aiProvider.summarizerModelVersion,
           },
         },
         { upsert: true },

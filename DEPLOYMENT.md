@@ -30,8 +30,25 @@ The following variables must be configured in the deployment environment:
 | `SUPABASE_BUCKET`| Supabase Storage bucket name for files | No | `cloudvault-files` |
 | `STORAGE_USE_MOCK` | Force in-memory storage (local/dev) | No | `true` |
 | `NODE_ENV` | Running environment mode | Yes | `production` |
+| `AI_PROVIDER` | AI backend (`mock` or `openrouter`) | No | `openrouter` |
+| `OPENROUTER_API_KEY` | OpenRouter API key (server only) | Yes if `AI_PROVIDER=openrouter` | *Paste key; never commit* |
+| `OPENROUTER_BASE_URL` | OpenRouter OpenAI-compatible base URL | No | `https://openrouter.ai/api/v1` |
+| `OPENROUTER_MODEL` | Chat/summary/tag model id | No | `openai/gpt-4o-mini` |
+| `OPENROUTER_EMBEDDING_MODEL` | Embedding model id | No | `openai/text-embedding-3-small` |
 
-> Note: The current AI worker uses a **MockAIProvider**. Live LLM keys (e.g. OpenAI) are not wired yet.
+> Copy [`.env.example`](.env.example) to `.env`. If `AI_PROVIDER=openrouter` but `OPENROUTER_API_KEY` is empty, the worker falls back to **MockAIProvider** and logs a warning.
+
+### Enable OpenRouter (after you generate a key)
+
+1. Put the key in `.env`:
+   ```
+   AI_PROVIDER=openrouter
+   OPENROUTER_API_KEY=sk-or-v1-...
+   ```
+2. Restart API (`npm run dev`) and worker (`npm run worker:dev`).
+3. In the UI: enable workspace AI → **Reprocess Insights** on a file.
+4. AI panel should show OpenRouter model metadata (not “Dev Mock” / `mock-summarizer`).
+5. Live mode downloads the file and extracts text (PDF/text). Empty/unsupported files fail permanently with a clear error.
 
 ---
 
@@ -50,7 +67,10 @@ npm run worker:dev
 cd frontend && npm run dev -- -p 3001
 ```
 
-Then in the UI: enable workspace AI (OWNER/ADMIN) → upload or **Reprocess** a file → wait for READY (mock summary).
+Then in the UI: enable workspace AI (OWNER/ADMIN) → upload or **Reprocess** a file → wait for READY.
+
+- Without `OPENROUTER_API_KEY`: mock summary/tags (local/dev).
+- With OpenRouter configured: real summary/tags/embeddings from extracted document text.
 
 Account switching: always **Sign Out** (or open `/login?switch=1`) before logging in as another user in the same browser. Prefer a second profile/incognito for invitee testing.
 
