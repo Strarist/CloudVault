@@ -26,6 +26,9 @@ import intelligenceRoutes from './routes/intelligence.routes';
 
 const app = express();
 
+// Render / reverse proxies terminate TLS; needed for secure cookies + correct IPs
+app.set('trust proxy', 1);
+
 // Set up views
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../views'));
@@ -42,7 +45,18 @@ app.use(
 );
 app.use(
   cors({
-    origin: 'http://localhost:3001',
+    origin(origin, callback) {
+      // Allow non-browser / same-origin tools (no Origin header)
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      if (config.CORS_ORIGINS.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(null, false);
+    },
     credentials: true,
   }),
 );

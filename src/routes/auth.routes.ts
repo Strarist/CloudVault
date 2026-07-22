@@ -6,7 +6,7 @@ import { User } from '../models/user.model';
 import { Workspace } from '../models/workspace.model';
 import { WorkspaceMember } from '../models/workspaceMember.model';
 import { WorkspaceType, WorkspaceRole } from '../models/types';
-import { config } from '../config';
+import { config, getAuthCookieOptions } from '../config';
 import { authenticateJWT } from '../middleware/auth';
 import { asyncHandler } from '../utils/asyncHandler';
 
@@ -155,13 +155,7 @@ router.post(
       { expiresIn: '24h' },
     );
 
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: config.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    });
+    res.cookie('token', token, getAuthCookieOptions(24 * 60 * 60 * 1000));
 
     const responseUser = {
       _id: user._id,
@@ -182,12 +176,7 @@ router.post(
 router.post(
   '/logout',
   asyncHandler(async (_req: Request, res: Response) => {
-    res.clearCookie('token', {
-      httpOnly: true,
-      secure: config.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-    });
+    res.clearCookie('token', getAuthCookieOptions());
     res.status(200).json({ message: 'Logged out successfully.' });
   }),
 );

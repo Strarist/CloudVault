@@ -1,0 +1,79 @@
+# Render Blueprint — API web service + AI worker
+# https://render.com/docs/blueprint-spec
+# Set secret env vars in the Render dashboard (do not commit real values).
+
+services:
+  - type: web
+    name: cloudvault-api
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: .
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: cloudvault-files
+      - key: STORAGE_USE_MOCK
+        value: "false"
+      - key: CORS_ORIGINS
+        sync: false
+      - key: COOKIE_CROSS_SITE
+        value: "true"
+      - key: AI_PROVIDER
+        value: openrouter
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: openrouter/free
+      - key: OPENROUTER_EMBEDDING_MODEL
+        value: local
+      - key: LOG_LEVEL
+        value: info
+
+  - type: worker
+    name: cloudvault-ai-worker
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: .
+    buildCommand: npm ci && npm run build
+    startCommand: npm run worker
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: cloudvault-files
+      - key: STORAGE_USE_MOCK
+        value: "false"
+      - key: AI_PROVIDER
+        value: openrouter
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: openrouter/free
+      - key: OPENROUTER_EMBEDDING_MODEL
+        value: local
+      - key: LOG_LEVEL
+        value: info

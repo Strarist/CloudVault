@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Backend skeleton for CloudVault",
   "main": "dist/app.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "ts-node-dev --respawn src/app.ts",
     "worker:dev": "ts-node-dev --respawn src/workers/ai.worker.ts",

@@ -4,14 +4,17 @@ import mongoose from 'mongoose';
 const router = Router();
 
 router.get('/', (_req: Request, res: Response) => {
-  const dbStatus = mongoose.connection.readyState === 1 ? 'up' : 'down';
-  res.status(200).json({
-    status: 'ok',
+  const dbUp = mongoose.connection.readyState === 1;
+  const payload = {
+    status: dbUp ? 'ok' : 'degraded',
     timestamp: new Date().toISOString(),
     services: {
-      database: dbStatus,
+      database: dbUp ? 'up' : 'down',
     },
-  });
+  };
+
+  // Render health checks treat non-2xx as unhealthy
+  res.status(dbUp ? 200 : 503).json(payload);
 });
 
 export default router;

@@ -45,6 +45,8 @@ const notificationSchema = new Schema<INotification>(
 // Indexes
 notificationSchema.index({ userId: 1 });
 notificationSchema.index({ isRead: 1 });
+notificationSchema.index({ userId: 1, createdAt: -1 }); // Notification dropdown
+notificationSchema.index({ userId: 1, isRead: 1, createdAt: -1 }); // Unread count + list
 
 export const Notification = mongoose.model<INotification>('Notification', notificationSchema);
 export default Notification;

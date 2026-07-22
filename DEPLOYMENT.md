@@ -1,137 +1,166 @@
 # CloudVault Production Deployment Guide
 
-This document details the production deployment requirements, environment variables, health checking, and configuration for CloudVault.
+This document details production deployment for **Render (API + AI worker) + Vercel (frontend)**, plus local runbooks and optimization notes.
 
 ---
 
 ## 1. System Architecture
 
-CloudVault is built on a decoupled architecture containing:
-- **Backend Service**: Express.js server exposing REST APIs under `/api`.
-- **Frontend App**: Next.js client communicating with the backend APIs.
-- **Database**: MongoDB (Atlas) for metadata storage, activity logs, and system states.
-- **Storage**: Supabase Storage / S3-compatible object storage for file versions.
-- **AI Processing Pipeline**: Background workers that process uploaded files asynchronously.
+```mermaid
+flowchart LR
+  Browser --> VercelFE[Vercel_Nextjs]
+  VercelFE -->|HTTPS_cookies| RenderAPI[Render_API]
+  RenderAPI --> Mongo[(MongoDB_Atlas)]
+  RenderAPI --> Supabase[(Supabase_Storage)]
+  RenderWorker[Render_AI_Worker] --> Mongo
+  RenderWorker --> Supabase
+  RenderWorker --> OpenRouter[OpenRouter_free]
+```
+
+CloudVault processes:
+- **API** (Express): auth, workspaces, files, search, AI job enqueue
+- **AI worker**: polls `AIJob`, extracts text, calls OpenRouter, writes `AIResult`
+- **Frontend** (Next.js): dashboard UI on Vercel
 
 ---
 
-## 2. Environment Variables Configuration
+## 2. Environment Variables
 
-The following variables must be configured in the deployment environment:
+### Backend / Worker (Render)
 
-### Backend Service (`.env`)
-| Variable | Description | Required | Example / Recommended |
-| :--- | :--- | :--- | :--- |
-| `PORT` | Port for the backend service to run on | Yes | `3000` |
-| `MONGO_URI` | MongoDB connection URI | Yes | `mongodb+srv://<user>:<password>@cluster0.mongodb.net/cloudvault` |
-| `JWT_SECRET` | Secret key for signing and verifying Auth tokens | Yes | *Use a secure 32-character hex string* |
-| `SUPABASE_URL` | Supabase project URL for object storage | Yes (prod) | `https://your-project.supabase.co` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server only) | Yes (prod) | *Service role key* |
-| `SUPABASE_BUCKET`| Supabase Storage bucket name for files | No | `cloudvault-files` |
-| `STORAGE_USE_MOCK` | Force in-memory storage (local/dev) | No | `true` |
-| `NODE_ENV` | Running environment mode | Yes | `production` |
-| `AI_PROVIDER` | AI backend (`mock` or `openrouter`) | No | `openrouter` |
-| `OPENROUTER_API_KEY` | OpenRouter API key (server only) | Yes if `AI_PROVIDER=openrouter` | *Paste key; never commit* |
-| `OPENROUTER_BASE_URL` | OpenRouter OpenAI-compatible base URL | No | `https://openrouter.ai/api/v1` |
-| `OPENROUTER_MODEL` | Chat/summary/tag model id | No | `openrouter/free` (free) |
-| `OPENROUTER_EMBEDDING_MODEL` | Embedding model id, or `local` | No | `local` (no paid embeddings) |
+| Variable | Required | Notes |
+| :--- | :--- | :--- |
+| `NODE_ENV` | Yes | `production` |
+| `PORT` | Yes | Render sets this; default `3000` |
+| `MONGO_URI` | Yes | Atlas connection string |
+| `JWT_SECRET` | Yes | >= 32 random chars |
+| `SUPABASE_URL` | Yes (prod) | Project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes (prod) | Server only |
+| `SUPABASE_BUCKET` | No | Default `cloudvault-files` |
+| `STORAGE_USE_MOCK` | No | Must be `false` in prod |
+| `CORS_ORIGINS` | Yes (prod) | Exact Vercel origin(s), comma-separated |
+| `COOKIE_CROSS_SITE` | Yes (prod) | `true` for Vercel↔Render cookies |
+| `AI_PROVIDER` | No | `openrouter` or `mock` |
+| `OPENROUTER_API_KEY` | If openrouter | Secret |
+| `OPENROUTER_MODEL` | No | Default `openrouter/free` |
+| `OPENROUTER_EMBEDDING_MODEL` | No | Default `local` |
+| `LOG_LEVEL` | No | `info` |
 
-> Copy [`.env.example`](.env.example) to `.env`. If `AI_PROVIDER=openrouter` but `OPENROUTER_API_KEY` is empty, the worker falls back to **MockAIProvider** and logs a warning.
->
-> Prefer free OpenRouter models (ids ending in `:free`, or `openrouter/free`). Do **not** set `openai/gpt-4o-mini` / paid embedding models unless you intend to spend credits.
-> `OPENROUTER_EMBEDDING_MODEL=local` uses a deterministic local vector so semantic search works without a paid embedding API.
+Blueprint: [`render.yaml`](render.yaml). Fill `sync: false` secrets in the Render dashboard.
 
-### Enable OpenRouter (after you generate a key)
+### Frontend (Vercel)
 
-1. Put the key in `.env`:
-   ```
-   AI_PROVIDER=openrouter
-   OPENROUTER_API_KEY=sk-or-v1-...
-   ```
-2. Restart API (`npm run dev`) and worker (`npm run worker:dev`).
-3. In the UI: enable workspace AI → **Reprocess Insights** on a file.
-4. AI panel should show OpenRouter model metadata (not “Dev Mock” / `mock-summarizer`).
-5. Live mode downloads the file and extracts text (PDF/text). Empty/unsupported files fail permanently with a clear error.
+| Variable | Required | Example |
+| :--- | :--- | :--- |
+| `NEXT_PUBLIC_API_URL` | Yes | `https://cloudvault-api.onrender.com` |
+
+Template: [`frontend/.env.example`](frontend/.env.example).
 
 ---
 
-## Local development runbook (API + Worker + Frontend)
+## 3. Deploy runbook (Render + Vercel)
 
-CloudVault AI jobs do **not** run inside `npm run dev`. Run three processes:
+### A. Prerequisites
+
+1. MongoDB Atlas cluster + network access for Render IPs (or `0.0.0.0/0` for free tier)
+2. Supabase project + `cloudvault-files` bucket
+3. OpenRouter key (optional but recommended)
+4. GitHub repo connected to Render and Vercel
+
+### B. Render — API + worker
+
+1. Dashboard → **New** → **Blueprint** → select this repo (`render.yaml`)
+2. Create services `cloudvault-api` and `cloudvault-ai-worker`
+3. Set secrets: `MONGO_URI`, `JWT_SECRET`, `SUPABASE_*`, `OPENROUTER_API_KEY`, `CORS_ORIGINS`
+4. Deploy API first; note the public URL (e.g. `https://cloudvault-api.onrender.com`)
+5. Confirm `GET /health` returns `200` with `"database":"up"`
+
+### C. Vercel — frontend
+
+1. Import repo → **Root Directory** = `frontend`
+2. Framework: Next.js
+3. Env: `NEXT_PUBLIC_API_URL=<Render API URL>` (no trailing slash)
+4. Deploy; note the Vercel URL
+
+### D. Wire CORS + cookies
+
+1. On Render API (and optionally worker is N/A): set  
+   `CORS_ORIGINS=https://your-app.vercel.app`  
+   (include preview URLs if needed, comma-separated)
+2. Keep `COOKIE_CROSS_SITE=true` so auth uses `SameSite=None; Secure`
+3. Redeploy API after env change
+4. Hard-refresh the Vercel site → register/login → upload → enable AI → reprocess
+
+### E. Verify production
+
+- [ ] `GET /health` → 200
+- [ ] Login sets cookie; `/auth/me` works from the Vercel origin
+- [ ] Upload + download file (Supabase)
+- [ ] AI worker completes job (`READY`, non-mock model when OpenRouter configured)
+- [ ] Mentions / notifications still work
+
+---
+
+## 4. Local development
 
 ```bash
 # Terminal 1 — API
 npm run dev
 
-# Terminal 2 — AI worker (required for summaries / READY status)
+# Terminal 2 — AI worker
 npm run worker:dev
 
 # Terminal 3 — Frontend
-cd frontend && npm run dev -- -p 3001
+cd frontend && npx next dev -p 3001
 ```
 
-Then in the UI: enable workspace AI (OWNER/ADMIN) → upload or **Reprocess** a file → wait for READY.
-
-- Without `OPENROUTER_API_KEY`: mock summary/tags (local/dev).
-- With OpenRouter configured: real summary/tags/embeddings from extracted document text.
-
-Account switching: always **Sign Out** (or open `/login?switch=1`) before logging in as another user in the same browser. Prefer a second profile/incognito for invitee testing.
-
-
-### Frontend Application (`.env.production`)
-| Variable | Description | Required | Example / Recommended |
-| :--- | :--- | :--- | :--- |
-| `NEXT_PUBLIC_API_URL` | Base URL of the deployed Backend API service | Yes | `https://api.cloudvault.com` |
+Local CORS defaults to `http://localhost:3001`. Keep `COOKIE_CROSS_SITE=false` locally.
 
 ---
 
-## 3. Health Monitoring & Status Checks
-
-The backend exposes the following endpoint to monitor service health and connection statuses:
+## 5. Health check
 
 ### `GET /health`
-- **Response status**: `200 OK` (if all systems are healthy) / `503 Service Unavailable` (if MongoDB or Supabase connection is down).
-- **Format**:
-```json
-{
-  "status": "healthy",
-  "timestamp": "2026-06-10T16:20:00Z",
-  "services": {
-    "mongodb": "connected",
-    "supabase": "connected"
-  }
-}
-```
+
+- **200** when MongoDB is connected (`status: "ok"`, `services.database: "up"`)
+- **503** when MongoDB is down (`status: "degraded"`, `services.database: "down"`)
+
+Used by Render `healthCheckPath`.
 
 ---
 
-## 4. Production Log Sanitization & Security
+## 6. Security notes
 
-See [SECURITY.md](SECURITY.md) for secret handling, `.gitignore` rules, and pre-push checks.
+See [SECURITY.md](SECURITY.md).
 
-To protect user privacy and secure credentials in production:
-1. **No Sensitive Leaks**: Ensure all loggers exclude request/response headers containing `Authorization`, `Cookie`, or `Set-Cookie`. Query strings are stripped from request path logs.
-2. **PII Masking**: Ensure passwords, credit cards, and JWT tokens are filtered and replaced with `[REDACTED]` in application logging middlewares.
-3. **Log Level**: Use `info` or `warn` level in production environments to minimize IO bottlenecks and limit debugging log output.
-4. **JWT**: Production refuses weak/placeholder `JWT_SECRET` values (min 32 chars).
-5. **Cookies**: Auth cookie is `httpOnly` + `sameSite=lax`; `secure` is enabled when `NODE_ENV=production`.
+- Production JSON logging (no `pino-pretty`)
+- Weak `JWT_SECRET` rejected in production
+- Auth cookie: `httpOnly`; cross-site deployments use `SameSite=None; Secure`
+- `trust proxy` enabled for Render TLS termination
+- Never put `SUPABASE_SERVICE_ROLE_KEY` or `OPENROUTER_API_KEY` in `NEXT_PUBLIC_*`
 
 ---
 
-## 5. Deployment Targets
+## 7. Optimization (short pass already in repo)
 
-### Backend Service & Worker
-- **Target**: Render, Heroku, AWS ECS, or DigitalOcean App Platform.
-- **Process Configuration**:
-  - Web service: Runs `npm run start` (Express.js server).
-  - Background worker: Runs `npm run worker` (`node dist/workers/ai.worker.js`).
+- Compound indexes for active file lists and notification feeds
+- Worker remains a separate process (do not fold into API web dyno)
+- Prefer free OpenRouter models + `OPENROUTER_EMBEDDING_MODEL=local` to control cost
+- CI: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) builds backend/frontend and runs fast unit tests
 
-### Frontend Client
-- **Target**: Vercel, Netlify, or AWS Amplify.
-- **Process Configuration**:
-  - Build command: `npm run build`
-  - Output directory: `.next`
+### Follow-ups (later)
 
-### Database & Storage
-- **Database**: MongoDB Atlas (Shared or Serverless cluster).
-- **Storage**: Supabase Storage Bucket with appropriate policy permissions.
+- Paid Render plans if free-tier spin-down is unacceptable
+- Stronger embeddings (paid model) when semantic search quality matters
+- CDN / signed URL caching for large downloads
+- Observability (structured error tracking)
+
+---
+
+## 8. Process commands
+
+| Process | Build | Start |
+| :--- | :--- | :--- |
+| API | `npm ci && npm run build` | `npm start` |
+| Worker | `npm ci && npm run build` | `npm run worker` |
+| Frontend | `cd frontend && npm ci && npm run build` | `npm start` (Vercel handles) |

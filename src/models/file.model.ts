@@ -77,6 +77,7 @@ const fileSchema = new Schema<IFile>(
 fileSchema.index({ workspaceId: 1 });
 fileSchema.index({ folderId: 1 });
 fileSchema.index({ workspaceId: 1, folderId: 1 }); // Compound index for file browsing inside workspace/folder
+fileSchema.index({ workspaceId: 1, status: 1, deletedAt: 1 }); // Active file lists + intelligence coverage
 fileSchema.index({ createdBy: 1 });
 fileSchema.index({ status: 1 });
 
